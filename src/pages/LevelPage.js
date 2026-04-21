@@ -40,6 +40,9 @@ const LevelPage = () => {
   const [progressState, setProgressState] = useState('not_started');
   const [progressSaving, setProgressSaving] = useState(false);
   const [progressMessage, setProgressMessage] = useState('');
+  const [showXP, setShowXP] = useState(false);
+  const [earnedXP, setEarnedXP] = useState(0);
+  
 
   // Fetch level content from Supabase
   useEffect(() => {
@@ -879,6 +882,7 @@ const LevelPage = () => {
           </div>
         </div>
       </div>
+      <XPToast xp={earnedXP} show={showXP} />
     </div>
   );
 };
