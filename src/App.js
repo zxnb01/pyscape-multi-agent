@@ -11,9 +11,10 @@ import Portfolio from './pages/Portfolio';
 import Auth from './pages/Auth';
 import SplashScreen from './pages/SplashScreen';
 import ProfileBuild from './pages/ProfileBuild';
-import TopicSelection from './pages/TopicSelection';
 import NotFound from './pages/NotFound';
 import { AuthProvider } from './context/AuthContext';
+import { GamificationProvider } from './gamification/useGamification';
+import useGamification from './gamification/useGamification';
 import ProtectedRoute from './components/auth/ProtectedRoute';
 import UserProfile from './pages/UserProfile';
 import AllNews from './pages/AllNews';
@@ -24,6 +25,20 @@ import RoadmapPage from './pages/RoadmapPage';
 import ProjectDetailPage from './pages/ProjectDetailPage';
 import DebugContentGenerator from './pages/DebugContentGenerator';
 import DiagnosticPage from './pages/DiagnosticPage';
+import XPToast from './gamification/XPToast';
+import AuthCallback from './pages/AuthCallback';
+
+// Global XP Toast component that uses gamification context
+const XPToastGlobal = () => {
+  const { xpNotification } = useGamification();
+  return (
+    <XPToast 
+      xp={xpNotification.xp} 
+      show={xpNotification.show} 
+      badges={xpNotification.badges} 
+    />
+  );
+};
 
 function App() {
   console.log('Environment Variables Check:');
@@ -34,14 +49,18 @@ function App() {
 
   return (
     <AuthProvider>
-      <Routes>
+      <GamificationProvider>
+        <Routes>
         {/* Splash screen entry */}
         <Route path="/" element={<SplashScreen />} />
 
         {/* Auth page */}
         <Route path="/auth" element={<Auth />} />
 
-        {/* Profile build */}
+        {/* Auth callback for OAuth (Google, GitHub) */}
+        <Route path="/auth-callback" element={<AuthCallback />} />
+
+        {/* Profile build (protected) */}
         <Route
           path="/profile-build"
           element={
@@ -51,17 +70,7 @@ function App() {
           }
         />
 
-        {/* Topic selection */}
-        <Route
-          path="/topic-selection"
-          element={
-            <ProtectedRoute>
-              <TopicSelection />
-            </ProtectedRoute>
-          }
-        />
-
-        {/* Top-level learn routes */}
+        {/* Top-level Learn routes (mirror /app/learn/*) so /learn/:moduleId works */}
         <Route
           path="/learn"
           element={
@@ -130,6 +139,10 @@ function App() {
         {/* Catch-all */}
         <Route path="*" element={<NotFound />} />
       </Routes>
+      
+      {/* Global XP Notification Toast */}
+      <XPToastGlobal />
+      </GamificationProvider>
     </AuthProvider>
   );
 }
