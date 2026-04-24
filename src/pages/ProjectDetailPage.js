@@ -172,6 +172,7 @@ export default function ProjectDetailPage() {
   const [loading, setLoading] = useState(true);
   const [completed, setCompleted] = useState(false);
   const [completionError, setCompletionError] = useState('');
+  const [completedSteps, setCompletedSteps] = useState([]);
 
   useEffect(() => {
     let cancelled = false;
