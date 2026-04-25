@@ -52,8 +52,6 @@ const AuthCallback = () => {
       } catch (err) {
         console.error('❌ Auth callback error:', err);
         navigate('/auth');
-      } finally {
-        setChecking(false);
       }
     };
 
