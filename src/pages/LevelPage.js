@@ -266,7 +266,7 @@ const LevelPage = () => {
         
         console.log(`✅ Level XP awarded:`, xpResult);
 
-        currentEarnedXP = xpResult.xpAwarded || 0;
+        const currentEarnedXP = xpResult.xpAwarded || 0;
 
         if (currentEarnedXP === 0) {
           console.warn(`⚠️ Level XP did not award (possibly duplicate). Verify xp_history source_type support:`, {

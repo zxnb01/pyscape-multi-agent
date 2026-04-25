@@ -3,10 +3,11 @@ import supabase from '../utils/supabaseClient';
 // ============================================================
 // STEP 1: SYSTEM PROMPT (STRICT BEHAVIOR)
 // ============================================================
+// eslint-disable-next-line no-useless-escape
 const SYSTEM_PROMPT = `You are an AI curriculum generator for PyScape.
 
 You create JSON lesson parts for a learning UI with three tabs:
-1) Learn tab: reads markdown from content
+1) Learn tab: reads markdown from content (LENGTH MATTERS: aim for 600-800 words for Level 1, 500-700 for Levels 4-5)
 2) Examples tab: runs examples[i].code and validates examples[i].testCases
 3) Practice tab: runs exercise.starterCode in a code playground
 
@@ -19,7 +20,40 @@ Non-negotiable rules:
 6. No random/time/input/network/files/env dependencies
 7. Every test check must be a concrete output substring
 8. Exercise must be solvable with concepts taught in this level
-9. If your draft violates rules, silently fix it before responding`;
+9. Content field must follow level-specific structure: beginner levels prioritize explanation, advanced levels prioritize architecture
+10. Do not use arbitrary time constraints (\"in 60 seconds\", etc.) - allow full depth for learner understanding
+11. If your draft violates rules, silently fix it before responding
+
+⚠️ CRITICAL JSON ESCAPING RULES (MUST FOLLOW - THIS DETERMINES SUCCESS):
+Your JSON must be valid. Inside string fields (\"code\", \"content\", etc.), you MUST escape special characters:
+- Every newline character MUST become \\\\n (backslash-n in the JSON string)
+- Every backslash MUST become \\\\\\\\ (four backslashes in the JSON string)  
+- Every quote MUST become \\\\\" (backslash-quote in the JSON string)
+
+EXAMPLES OF CORRECT vs WRONG:
+
+WRONG (will FAIL to parse):
+{
+  \"code\": \"def greet(name):
+    print(f'Hello, {name}!')\"
+}
+
+RIGHT (will PARSE correctly):
+{
+  \"code\": \"def greet(name):\\n    print(f'Hello, {name}!')\"
+}
+
+WRONG (will FAIL):
+{
+  \"content\": \"Use backslash \\ for escaping.\"
+}
+
+RIGHT (will PARSE):
+{
+  \"content\": \"Use backslash \\\\\\\\ for escaping.\"
+}
+
+Apply these rules automatically to every single string field. If you forget, the entire payload will fail.`;
 
 // ============================================================
 // STEP 2: DEVELOPER PROMPT (SCHEMA + UX CONTRACT)
@@ -37,7 +71,7 @@ Return ONLY this JSON object:
   "type": "intro|practical|advanced|projects|challenges",
   "title": "string",
   "description": "string",
-  "content": "markdown string",
+  "content": "markdown string (CRITICAL: Follow your level's structure and word count target in the user prompt. Level 1 = 600-800 words explaining concepts; Levels 4-5 = 500-700 words on architecture)",
   "examples": [
     {
       "title": "string",
@@ -68,12 +102,51 @@ Return ONLY this JSON object:
 
 UI mapping contract:
 1) Learn tab consumes content
-- Use these markdown headings in order:
-  ### What You Will Build
-  ### Core Idea in 60 Seconds
+Content structure adapts to level—depth and word count increase from intro to advanced.
+
+**LEVEL 1 (Intro) — Beginner-focused, conceptual depth (600–800 words total):**
+Priority: explanation clarity > code. Use real-world context and analogies.
+Headings in order:
+  ### What You Will Learn
+  [1-2 sentences introducing the concept + real-world context: "This skill helps with X, Y, Z..."]
+  ### The Core Idea
+  [150–200 words: Expand why this concept exists, how it fits into Python ecosystem, relatable analogy or comparison]
   ### Step-by-Step Walkthrough
-  ### Common Mistakes
-  ### Quick Recap
+  [Explain concept in 3–4 progressive steps: simple → applied → edge case. Use narrative, not just code.]
+  ### Your First Example
+  [Show minimal working code (5–8 lines) with inline comments explaining each part]
+  ### Common Beginner Mistakes
+  [List 2–3 mistakes: explain what goes wrong and why. Example: "Don't do X because..."]
+  ### Key Takeaway
+  [1-2 sentences reinforcing concept and why it matters for next level]
+
+**LEVEL 2–3 (Practical/Advanced) — Pattern-focused, practical depth (400–600 words total):**
+Priority: balance explanation + realistic code patterns.
+Headings in order:
+  ### Deeper Dive: [Concept Name]
+  [100–150 words: Cover patterns, trade-offs, when to use this vs. alternatives]
+  ### Visual Model or Pseudocode
+  [ASCII diagram or pseudocode showing flow/structure without full implementation]
+  ### Real-World Pattern
+  [Show 1–2 realistic code snippets (10–15 lines each) with context: "in pandas", "in API handlers", etc.]
+  ### Edge Cases & Gotchas
+  [Explain 2–3 realistic gotchas: "Watch out for X in Y scenario because..."]
+  ### Summary
+  [Connection to Level 1, preview of what Level 4–5 will add]
+
+**LEVEL 4–5 (Projects/Challenges) — Performance & architecture depth (500–700 words total):**
+Priority: architecture reasoning + trade-offs. Code is secondary to design decisions.
+Headings in order:
+  ### Architecture & Trade-Offs
+  [200+ words on design choices, performance implications, scalability considerations]
+  ### Production Patterns
+  [Show industrial code patterns: error handling, defensive checks, logging/monitoring]
+  ### Performance Considerations
+  [Complexity analysis, optimization strategies, when premature optimization is worth it]
+  ### Integration Example
+  [Realistic multi-component scenario combining this level with prior levels]
+  ### Summary & Next Steps
+  [Where this fits in a larger system, prerequisites for more advanced topics]
 
 2) Examples tab consumes examples[]
 - Provide exactly 3 examples
@@ -117,6 +190,49 @@ Lesson Focus: "${generationContext.lessonTitle || skillName}"
 Generation Source: ${generationContext.source || 'skill-first'}`
     : '';
 
+  // Level-specific content depth guidance
+  const levelContentGuidance = {
+    1: `LEVEL 1 (INTRO) — BEGINNER-FOCUSED NARRATIVE:
+- Total content word target: 600–800 words
+- Priority: Explanation clarity and conceptual understanding FIRST, then code
+- Audience: Python beginner who has NOT seen this concept before
+- Approach: Use analogies, real-world context, and step-by-step scaffolding
+- What NOT to do: Don't assume prior knowledge; don't jump to advanced patterns
+- Success metric: Beginner finishes this level understanding the "why" before the "how"`,
+    
+    2: `LEVEL 2 (PRACTICAL) — PATTERN & PRACTICE FOCUSED:
+- Total content word target: 400–600 words
+- Priority: Balance conceptual deepening with realistic code patterns
+- Audience: Student who completed Level 1; comfortable with basics, ready for patterns
+- Approach: Show practical variations, trade-offs vs. Level 1, real library usage
+- What NOT to do: Don't re-explain Level 1 basics; don't introduce unrelated advanced topics
+- Success metric: Student learns when/why to use this pattern in real projects`,
+    
+    3: `LEVEL 3 (ADVANCED) — EDGE CASES & RELIABILITY FOCUSED:
+- Total content word target: 400–600 words
+- Priority: Edge cases, anti-patterns, performance considerations
+- Audience: Student who completed Levels 1–2; ready for robustness and nuance
+- Approach: Defensive designs, common gotchas, production-grade patterns
+- What NOT to do: Don't oversimplify; assume mastery of previous levels
+- Success metric: Student can defend their implementation choices and handle messy inputs`,
+    
+    4: `LEVEL 4 (PROJECTS) — END-TO-END INTEGRATION FOCUSED:
+- Total content word target: 500–700 words
+- Priority: Multi-step realistic scenarios combining multiple prior levels
+- Audience: Student ready for project-scale complexity; thinking in components
+- Approach: Show architectural choices, integration points, validation strategies
+- What NOT to do: Don't isolate this to one concept; show how it connects
+- Success metric: Student can structure and deliver a real feature with confidence`,
+    
+    5: `LEVEL 5 (CHALLENGES) — OPTIMIZATION & EXPERT REASONING FOCUSED:
+- Total content word target: 500–700 words
+- Priority: Performance analysis, design constraints, senior-level trade-offs
+- Audience: Student aiming for expert skill; interested in scalability and nuance
+- Approach: Complexity analysis, hidden costs, advanced alternatives and their trade-offs
+- What NOT to do: Don't assume unlimited resources; reason under constraints
+- Success metric: Student can make and defend complex technical decisions at scale`
+  };
+
   const difficultyContext = {
     1: 'intro/foundational',
     2: 'practical/intermediate with code examples',
@@ -136,7 +252,21 @@ Level: ${levelNumber}/5 - ${difficultyContext[levelNumber] || 'practical progres
 Type: ${levelType}
 Target Difficulty: ${difficulty}
 
-CRITICAL DESCRIPTION REQUIREMENT:
+═══════════════════════════════════════════════════════════════
+CONTENT GENERATION GUIDANCE (PRIMARY FOCUS)
+═══════════════════════════════════════════════════════════════
+
+${levelContentGuidance[levelNumber] || levelContentGuidance[1]}
+
+CONTENT FIELD REQUIREMENTS:
+- The "content" field is the Learn tab markdown
+- Follow the exact heading structure specified in the UI contract
+- Aim for the word count target for your level (see above)
+- Use clear, beginner-friendly language without sacrificing accuracy
+- Include inline code examples where appropriate (backticks for snippets, code blocks for multi-line)
+- NO arbitrary time constraints like "in 60 seconds"—give learners time to understand
+
+CRITICAL DESCRIPTION FIELD REQUIREMENT:
 Your description field MUST be 120-180 words with this exact structure:
 1. ONE sentence: Introduce what learners will master at this level
 2. TWO-THREE sentences: Explain why this matters in real-world Python development
@@ -149,23 +279,70 @@ Example high-quality description:
 Level intent requirements:
 1. Assume student already completed levels 1-${Math.max(levelNumber - 1, 0)}
 2. Introduce one new concept or one deeper application
-3. Keep practical and coding-first explanations
-4. Make outputs deterministic so substring tests are reliable
-5. Include exactly 3 examples, exactly 2 tests per example
-6. Include exactly 3 exercise tests
-7. Return only the JSON object with description field meeting 120-180 word requirement`;
+3. Make outputs deterministic so substring tests are reliable
+4. Include exactly 3 examples, exactly 2 tests per example
+5. Include exactly 3 exercise tests
+6. Return only the JSON object with description field meeting 120-180 word requirement and content field meeting the word target above`;
 }
 
 function extractJsonPayload(rawContent) {
+  // STRATEGY 1: Direct JSON parse (most common case)
   try {
     return JSON.parse(rawContent);
-  } catch {
-    const jsonMatch = rawContent.match(/```(?:json)?\n?([\s\S]*?)\n?```/);
-    if (jsonMatch) {
-      return JSON.parse(jsonMatch[1]);
-    }
-    throw new Error('Failed to parse OpenRouter response as JSON');
+  } catch (e1) {
+    console.warn(`⚠️  Direct JSON parse failed, trying fallback strategies...`);
   }
+
+  // STRATEGY 2: Extract from markdown code fence (API wrapped in backticks)
+  try {
+    const mdMatch = rawContent.match(/```(?:json)?\n?([\s\S]*?)\n?```/);
+    if (mdMatch && mdMatch[1]) {
+      return JSON.parse(mdMatch[1]);
+    }
+  } catch (e2) {
+    console.warn(`⚠️  Markdown fence extraction failed`);
+  }
+
+  // STRATEGY 3: Find first { and last } to extract partial JSON
+  try {
+    const firstBrace = rawContent.indexOf('{');
+    const lastBrace = rawContent.lastIndexOf('}');
+    if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
+      const jsonStr = rawContent.substring(firstBrace, lastBrace + 1);
+      console.warn(`⚠️  Extracted partial JSON from positions ${firstBrace}-${lastBrace}`);
+      return JSON.parse(jsonStr);
+    }
+  } catch (e3) {
+    console.warn(`⚠️  Partial JSON extraction failed`);
+  }
+
+  // STRATEGY 4: Attempt aggressive escaping repair for common patterns
+  // This tries to fix unescaped newlines/backslashes inside quoted strings
+  try {
+    console.warn(`⚠️  Attempting aggressive escaping repair...`);
+    let repaired = rawContent;
+    
+    // Replace literal newlines inside strings with \\n
+    repaired = repaired.replace(/"([^"\\]|\\.)*?"/g, (match) => {
+      // For each matched string, check if it has unescaped newlines
+      return match
+        .replace(/\n/g, '\\n')    // unescaped literal newline -> \\n
+        .replace(/\r/g, '\\r')    // carriage return -> \\r
+        .replace(/\t/g, '\\t')    // tab -> \\t
+        // Also fix double backslashes that should be escaped
+        .replace(/\\(?![\\"/bfnrtu])/g, '\\\\'); // single backslash not followed by escape char -> \\\\
+    });
+    
+    console.log(`✅ Repair attempt: Testing repaired JSON...`);
+    return JSON.parse(repaired);
+  } catch (e4) {
+    console.warn(`⚠️  Aggressive repair failed`);
+  }
+
+  // STRATEGY 5: Log raw content for debugging
+  console.error(`❌ All JSON extraction strategies failed. Raw response (first 1000 chars):`);
+  console.error(rawContent.substring(0, 1000));
+  throw new Error('Failed to parse OpenRouter response as JSON - all strategies exhausted');
 }
 
 /**
@@ -367,7 +544,7 @@ export async function callOpenAI(skillName, description, prerequisites = [], lev
           }
         ],
         temperature: 0.7,
-        max_tokens: 1500,
+        max_tokens: 1000,
       })
     });
 
@@ -378,7 +555,13 @@ export async function callOpenAI(skillName, description, prerequisites = [], lev
 
     const data = await response.json();
     const content = data.choices[0].message.content;
+    
+    console.log(`📨 Raw OpenRouter response (first 300 chars): ${content.substring(0, 300)}`);
+    
     const parsed = extractJsonPayload(content);
+    
+    console.log(`✅ Successfully parsed JSON, keys: ${Object.keys(parsed).join(', ')}`);
+    
     const normalized = normalizeLessonPayload(parsed, levelNumber, levelType);
 
     return normalized;
