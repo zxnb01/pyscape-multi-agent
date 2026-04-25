@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect } from "react";
 import { useAuth } from "../context/AuthContext";
 import { useNavigate } from "react-router-dom";
 import supabase from "../utils/supabaseClient";
@@ -165,7 +165,6 @@ const categories = [
 export default function ProfileBuild() {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const avatarRef = useRef();
 
   const [step, setStep] = useState(1);
   const [selectedTopics, setSelectedTopics] = useState(new Set());
@@ -183,7 +182,7 @@ export default function ProfileBuild() {
 
   useEffect(() => {
     if (!user) navigate("/auth");
-  }, [user]);
+  }, [user, navigate]);
 
   const toggleTopic = (id) => {
     const newSet = new Set(selectedTopics);
@@ -269,6 +268,7 @@ export default function ProfileBuild() {
                     <img
                       key={avatarStart + i}
                       src={a}
+                      alt="Avatar option"
                       onClick={() =>
                         setForm({ ...form, avatar_url: a })
                       }
@@ -500,6 +500,7 @@ export default function ProfileBuild() {
                 <div className="rounded-full border-4 border-purple-500 w-fit mx-auto overflow-hidden">
                   <img
                     src={form.avatar_url}
+                    alt="Selected avatar"
                     className="w-24 h-24 rounded-full object-cover"
                   />
                 </div>

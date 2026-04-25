@@ -1,14 +1,13 @@
 // src/pages/ModulePage.js
 import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { useParams, Link, useNavigate } from "react-router-dom";
+import { useParams, Link } from "react-router-dom";
 import supabase from "../utils/supabaseClient";
 import { useAuth } from "../context/AuthContext";
 import ModuleQuiz from "../components/ModuleQuiz";
 
 const ModulePage = () => {
   const { moduleId } = useParams();
-  const navigate = useNavigate();
   const { user } = useAuth();
   const [module, setModule] = useState(null);
   const [lessons, setLessons] = useState([]);

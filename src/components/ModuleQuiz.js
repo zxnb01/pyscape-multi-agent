@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import * as quizService from '../services/quizService';
 import { useAuth } from '../context/AuthContext';
 import useGamification from '../gamification/useGamification';
-import { updateStreak, checkAndAwardBadges } from '../gamification/gamificationService';
 import './ModuleQuiz.css';
 
 /**

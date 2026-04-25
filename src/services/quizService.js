@@ -41,7 +41,7 @@ function validateCodeOutputAnswers(options, questionText) {
   const correctText = correctOption.text || '';
   
   // Check if correct answer looks like actual code output
-  const hasActualOutput = /[\[\{\(]|^[0-9]|^None$|^True$|^False$|^-?[0-9]+\.[0-9]|^['"]/.test(correctText);
+  const hasActualOutput = /[\[{(]|^[0-9]|^None$|^True$|^False$|^-?[0-9]+\.[0-9]|^['"]/.test(correctText);
   
   if (hasActualOutput) {
     return options; // Already looks like code output, no fix needed
@@ -56,8 +56,8 @@ function validateCodeOutputAnswers(options, questionText) {
   options.forEach((opt) => {
     let score = 0;
     const text = opt.text || '';
-    if (/[\[\{\(]/.test(text)) score += 5;  // Has brackets/braces
-    if (/[\]\}\)]/.test(text)) score += 5;  // Has closing brackets
+    if (/[\[{(]/.test(text)) score += 5;  // Has brackets/braces
+    if (/[)\]}]/.test(text)) score += 5;  // Has closing brackets
     if (/^[0-9-]/.test(text)) score += 3;   // Starts with number
     if (/^None$|^True$|^False$/.test(text)) score += 4;  // Python keywords
     if (/^['"]/.test(text)) score += 2;     // Has quotes
@@ -186,8 +186,6 @@ async function generateQuizQuestionsWithLLM(moduleName, moduleDesc = '', topics 
       throw new Error('OpenRouter quiz generation failed after retry: ' + retryErr.message);
     }
   }
-
-  throw new Error('OpenRouter quiz generation did not return valid data.');
 }
 
 /**

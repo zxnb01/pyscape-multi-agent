@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import supabase from '../utils/supabaseClient';
@@ -10,8 +10,7 @@ import supabase from '../utils/supabaseClient';
  */
 const AuthCallback = () => {
   const navigate = useNavigate();
-  const { user, loading } = useAuth();
-  const [checking, setChecking] = useState(true);
+  const { loading } = useAuth();
 
   useEffect(() => {
     const handleCallback = async () => {

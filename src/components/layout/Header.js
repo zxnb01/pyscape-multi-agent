@@ -9,7 +9,7 @@ const Header = () => {
   const navigate = useNavigate();
 
   // 🔥 GAMIFICATION DATA (ADDED)
-  const { xp, streak, badges } = useGamification();
+  const { xp, streak } = useGamification();
 
   const handleSignOut = async () => {
     try {

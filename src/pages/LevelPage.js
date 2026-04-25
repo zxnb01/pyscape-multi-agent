@@ -16,8 +16,9 @@ import UniversalCodePlayground from "../components/sandbox/UniversalCodePlaygrou
 import lessonContentService from '../services/lessonContentService';
 import supabase from '../utils/supabaseClient';
 import { useAuth } from '../context/AuthContext';
-import { checkAndAwardBadges, updateStreak } from "../gamification/gamificationService";
+import { checkAndAwardBadges } from "../gamification/gamificationService";
 import useGamification from "../gamification/useGamification";
+import XPToast from '../gamification/XPToast';
 
 const LevelPage = () => {
   const { moduleId, lessonId, levelId } = useParams();
@@ -30,7 +31,6 @@ const LevelPage = () => {
   const [lessonType, setLessonType] = useState('read');
   const [lessonTotalLevels, setLessonTotalLevels] = useState(1);
   const [lessonXpReward, setLessonXpReward] = useState(10);
-  const [lessonCompleted, setLessonCompleted] = useState(false);
   const [moduleLessons, setModuleLessons] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -40,8 +40,9 @@ const LevelPage = () => {
   const [progressState, setProgressState] = useState('not_started');
   const [progressSaving, setProgressSaving] = useState(false);
   const [progressMessage, setProgressMessage] = useState('');
-  const [showXP, setShowXP] = useState(false);
-  const [earnedXP, setEarnedXP] = useState(0);
+  const [lessonCompleted, setLessonCompleted] = useState(false);
+  const [showXP] = useState(false);
+  const [earnedXP] = useState(0);
   
 
   // Fetch level content from Supabase
@@ -251,8 +252,6 @@ const LevelPage = () => {
     console.log(`✅ Level progress saved successfully: ${nextState}`);
 
     const xpAmount = level?.xp_reward ?? lessonXpReward ?? 10;
-    let currentEarnedXP = 0;
-    let badgeList = [];
 
     if (nextState === 'completed' && progressState !== 'completed') {
       console.log(`🎯 Completing level: user=${userId}, lessonId=${lessonDbId}, level=${parsedLevelId}, xp=${xpAmount}, currentState=${progressState}`);
